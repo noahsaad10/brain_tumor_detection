@@ -70,7 +70,7 @@ def plot_model_info(history):
 def predict_image(model, img_path, img_size):
     # Load and preprocess the image
     img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
-    img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+    img = cv2.resize(img, (img_size, img_size))
     img = img / 255.0
     img = apply_clahe(np.array(img))
     img = img.reshape(-1, img_size, img_size, 1)
@@ -84,9 +84,9 @@ def predict_image(model, img_path, img_size):
     
     # Display the prediction
     if pred < 0.5:
-        plt.title(f"Predicted: No Tumor ({pred.squeeze()*100:.2f}%)")
+        plt.title(f"Predicted: No Tumor ({(1 - pred.squeeze())*100:.2f}% confidence)")
     else:
-        plt.title(f"Predicted: Tumor ({pred.squeeze()*100:.2f}%)")
+        plt.title(f"Predicted: Tumor ({pred.squeeze()*100:.2f}% confidence)")
 
     plt.show()
 
