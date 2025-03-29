@@ -1,32 +1,93 @@
 import os
 import shutil
 from sklearn.model_selection import train_test_split
+import matplotlib.pyplot as plt
+import cv2
+import random
+import numpy as np
 
-def split_dataset(data_set_dir: str) -> None:
+
+def show_images(folder, title, num_images=4):
+    images = random.sample(os.listdir(folder), num_images)
+    fig, axes = plt.subplots(1, num_images, figsize=(15, 5))
+    
+    for i, img_name in enumerate(images):
+        img_path = os.path.join(folder, img_name)
+        img = cv2.imread(img_path)
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)  
+        axes[i].imshow(img)
+        axes[i].axis("off")
+        axes[i].set_title(title)
+    
+    plt.show()
+
+
+def preprocess_and_label_data(directory: str, label: int, IMG_SIZE: int) -> tuple:
     """
-    Split the dataset into train and test sets
+    Preprocess and label the directory
 
     Args:
-        data_set_dir (str): The directory where the dataset is stored
+        directory (str): directory path
+        label (int): label to add to images
+
+    Returns:
+        tuple: the preprocessed images and labels
     """
+    
+    images = []
+    labels = []
 
-    # Define the dataset directory and output directories
-    dataset_dir = data_set_dir
-    train_dir = 'dataset/train'
-    test_dir = 'dataset/test'
+    for img_name in os.listdir(directory):
+        img_path = os.path.join(directory, img_name)
+        img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+        img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+        img = img / 255.0
+        images.append(img)
+        labels.append(label)
+    return images, labels
 
-    # Get all file names from the dataset directory
-    file_names = [f for f in os.listdir(dataset_dir) if os.path.isfile(os.path.join(dataset_dir, f))]
+def apply_clahe(img):
+    clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+    return clahe.apply((img * 255).astype(np.uint8)) / 255.0
 
-    # Split the dataset into 90% train and 10% test
-    train_files, test_files = train_test_split(file_names, test_size=0.1, random_state=42)
+def plot_model_info(history):
+    plt.plot(history.history['accuracy'], label='Training Accuracy')
+    plt.plot(history.history['val_accuracy'], label='Validation Accuracy')
+    plt.legend()
+    plt.xlabel("Epochs")
+    plt.ylabel("Accuracy")
+    plt.title("Training vs Validation Accuracy")
+    plt.show()
+    
+    plt.plot(history.history['loss'], label='Training Loss')
+    plt.plot(history.history['val_loss'], label='Validation Loss')
+    plt.legend()
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss")
+    plt.title("Training vs Validation Loss")
+    plt.show()
 
-    # Move files to the train directory
-    for file_name in train_files:
-        shutil.copy(os.path.join(dataset_dir, file_name), os.path.join(train_dir, file_name))
+def predict_image(model, img_path, img_size):
+    # Load and preprocess the image
+    img = cv2.imread(img_path, cv2.IMREAD_GRAYSCALE)
+    img = cv2.resize(img, (IMG_SIZE, IMG_SIZE))
+    img = img / 255.0
+    img = apply_clahe(np.array(img))
+    img = img.reshape(-1, img_size, img_size, 1)
+    
+    # Predict
+    pred = model.predict(img)
+    
+    # Display the image
+    plt.imshow(img.reshape(img_size, img_size), cmap='gray')
+    plt.axis('off')
+    
+    # Display the prediction
+    if pred < 0.5:
+        plt.title(f"Predicted: No Tumor ({pred.squeeze()*100:.2f}%)")
+    else:
+        plt.title(f"Predicted: Tumor ({pred.squeeze()*100:.2f}%)")
 
-    # Move files to the test directory
-    for file_name in test_files:
-        shutil.copy(os.path.join(dataset_dir, file_name), os.path.join(test_dir, file_name))
+    plt.show()
 
-    print("Dataset split completed!")
+
